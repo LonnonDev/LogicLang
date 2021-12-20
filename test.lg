@@ -1,0 +1,8 @@
+Gate and(2, 1) {
+    in A;
+    in B;
+    
+    let andgate = nand(nand(A, B));
+
+    out Q = andgate;
+}
