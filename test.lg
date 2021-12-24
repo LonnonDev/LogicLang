@@ -1,8 +1,7 @@
-Gate and(2, 1) {
+Gate not {
     in A;
-    in B;
     
-    let andgate = nand(nand(A, B));
+    let andgate = nand(A, A);
 
     out Q = andgate;
 }
