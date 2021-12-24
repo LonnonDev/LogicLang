@@ -4,7 +4,7 @@ use regex::Regex;
 use lazy_static::lazy_static;
 
 enum Tokens {
-    Gate(String, u8, u8),
+    Gate(String),
     Name(String),
     Input,
     Output,
@@ -23,7 +23,7 @@ enum Tokens {
 impl fmt::Debug for Tokens {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Tokens::Gate(name, inputs, outputs) => write!(f, "Gate({:?}, {:?}, {:?})", name, inputs, outputs),
+            Tokens::Gate(name) => write!(f, "Gate({:?})", name),
             Tokens::Name(name) => write!(f, "Name({:?})", name),
             Tokens::Input => write!(f, "Input"),
             Tokens::Output => write!(f, "Output"),
@@ -44,7 +44,7 @@ impl fmt::Debug for Tokens {
 impl PartialEq for Tokens {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Gate(l0, l1, l2), Self::Gate(r0, r1, r2)) => l0 == r0 && l1 == r1 && l2 == r2,
+            (Self::Gate(l0), Self::Gate(r0)) => l0 == r0,
             (Self::Name(l0), Self::Name(r0)) => l0 == r0,
             (Self::ReferenceVar(l0), Self::ReferenceVar(r0)) => l0 == r0,
             (Self::Function(l0, l1, l2), Self::Function(r0, r1, r2)) => l0 == r0 && l1 == r1 && l2 == r2,
@@ -62,12 +62,11 @@ pub fn tokenize(content: String) {
     // Compile the regex's only once
     lazy_static! {
         // Gates
-        static ref GATE: Regex = Regex::new(r"Gate [a-z, A-Z]*\(\d+, \d+\)").unwrap();
-        static ref GATE_NAME: Regex = Regex::new(r"[a-z, A-Z]*").unwrap();
-        static ref GATE_NUMBERS: Regex = Regex::new(r"\d+").unwrap();
+        static ref GATE: Regex = Regex::new(r"Gate [a-z, A-Z]* ").unwrap();
+        static ref GATE_NAME: Regex = Regex::new(r" [a-z, A-Z]* ").unwrap();
 
         // Name
-        static ref NAME: Regex = Regex::new(r" [a-z, A-Z]+;| [a-z, A-Z]+ ").unwrap();
+        static ref NAME: Regex = Regex::new(r"[a-z, A-Z]*;|[a-z, A-Z]*").unwrap();
 
         // Scopes
         static ref SCOPESTART: Regex = Regex::new(r"\{").unwrap();
@@ -86,7 +85,7 @@ pub fn tokenize(content: String) {
         static ref ASSIGNMENT: Regex = Regex::new(r"=").unwrap();
 
         // SemiColon
-        static ref SEMICOLON: Regex = Regex::new(";").unwrap();
+        static ref SEMICOLON: Regex = Regex::new(r";").unwrap();
     }
 
     while x != content.as_bytes().len() {
@@ -94,27 +93,20 @@ pub fn tokenize(content: String) {
         
         // check if it's gate syntax
         if GATE.is_match(&currentcontent) {
-            let mut numbers = vec![];
-            let mut name = vec![];
-            // get the input and output numbers
-            for cap in GATE_NUMBERS.captures_iter(&currentcontent) {
-                numbers.push(cap[0].parse::<u8>().unwrap())
-            }
-            // get the name of the game
+            let mut ranonce = false;
             for cap in GATE_NAME.captures_iter(&currentcontent) {
-                let mut cap_bytes = cap[0].to_string().as_bytes().to_vec();
-                // removes the "Gate " part
-                for x in 0..=4 {
-                    cap_bytes.remove(0);
+                if !ranonce {
+                    println!("{}", &cap[0]);
+                    ranonce = !ranonce;
+                    continue;
                 }
-                name.push(String::from_utf8(cap_bytes).unwrap());
+                println!("{}", &cap[0]);
+                tokenized_content.push(Tokens::Gate(cap[0].to_string()));
+                currentcontent = String::new();
                 break;
             }
-
-            tokenized_content.push(Tokens::Gate(name[0].to_string(), numbers[0], numbers[1]));
-            currentcontent = String::new()
         }
-        if tokenized_content.len() != 0 {
+        if currentcontent.len() > 2 && tokenized_content.len() > 1 {
             // name
             if 
                 NAME.is_match(&currentcontent) 
